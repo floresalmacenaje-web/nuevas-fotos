@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family:Arial; font-size:15px;">
+
+<h3>Especies que no habian sido fotografiadas pre-incendio</h3>
+
+<div id="resultado">Cargando...</div>
+
+<script>
+
+const PRE_URL =
+  "https://api.inaturalist.org/v1/observations?" +
+  "d2=2026-01-17&place_id=218604&project_id=cuenca-estero-penco-plantas" +
+  "&per_page=200&page=";
+
+const POST_URL =
+  "https://api.inaturalist.org/v1/observations?" +
+  "created_d1=2026-01-18&place_id=218604&project_id=cuenca-estero-penco-plantas" +
+  "&per_page=200&page=";
+
+async function obtenerTodasLasObservaciones(baseURL) {
+
+  let pagina = 1;
+  let todas = [];
+
+  while (true) {
+
+    console.log("Cargando página", pagina);
+
+    const response = await fetch(baseURL + pagina);
+    const data = await response.json();
+
+    if (!data.results || data.results.length === 0) {
+      break;
+    }
+
+    todas = todas.concat(data.results);
+
+    pagina++;
+
+  }
+
+  return todas;
+}
+
+async function ejecutar() {
+
+  // PRE INCENDIO
+  const preObs = await obtenerTodasLasObservaciones(PRE_URL);
+
+  const especiesPre = new Set();
+
+  preObs.forEach(obs => {
+
+    if (
+      obs.taxon &&
+      obs.taxon.rank === "species"
+    ) {
+      especiesPre.add(obs.taxon.id);
+    }
+
+  });
+
+  // POST INCENDIO
+  const postObs = await obtenerTodasLasObservaciones(POST_URL);
+
+  const nuevas = new Map();
+
+  postObs.forEach(obs => {
+
+    if (
+      obs.taxon &&
+      obs.taxon.rank === "species"
+    ) {
+
+      const id = obs.taxon.id;
+
+      // si NO existía antes
+      if (!especiesPre.has(id)) {
+
+        nuevas.set(id, obs.taxon.name);
+
+      }
+
+    }
+
+  });
+
+  // MOSTRAR RESULTADOS
+
+  let html = `
+    <b>${nuevas.size} especies nuevas</b>
+    <br><br>
+  `;
+
+  nuevas.forEach((nombre, id) => {
+
+    html += `
+      • <a href="https://inaturalist.mma.gob.cl/observations?project_id=cuenca-estero-penco-plantas&verifiable=any&taxon_id=${id}" target="_blank">
+      ${nombre}
+      </a><br>
+    `;
+
+  });
+
+  document.getElementById("resultado").innerHTML = html;
+
+}
+
+ejecutar();
+
+</script>
+
+</body>
+</html>
